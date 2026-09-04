@@ -220,10 +220,6 @@ export default function ClavierArabe() {
       if (e.getModifierState) setCaps(e.getModifierState("CapsLock"));
 
       const target = e.target as HTMLElement | null;
-      const inField =
-        target === taRef.current ||
-        target?.tagName === "INPUT" ||
-        target?.isContentEditable;
 
       // raccourcis navigateur (copier/coller/sélectionner/annuler) : on ne touche à rien
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -255,25 +251,29 @@ export default function ClavierArabe() {
         insert(" ");
         return;
       }
-      if (e.key.length !== 1) return;
-
       if (settings.phonetic) {
+        // en phonétique on se base sur le caractère réellement produit
+        if (e.key.length !== 1) return;
         e.preventDefault();
         insert(PHONETIC[e.key] ?? e.key);
         return;
       }
 
+      // Mode clavier arabe : mappage par POSITION (e.code). On le fait avant
+      // tout test sur e.key : les touches mortes (^ ¨ ` sur AZERTY) envoient
+      // e.key = "Dead", et une lettre accentuée envoie plusieurs caractères,
+      // mais leur position physique reste correcte.
       const k = KEY_BY_CODE[e.code];
       if (!k || k.special) {
-        // code inconnu (ex. clavier exotique) : on retombe sur le caractère tapé
-        if (!inField) return;
+        // code inconnu (clavier exotique) ou touche non gérée : comportement natif
         return;
       }
-      e.preventDefault();
-      flash(e.code);
       const upper = e.shiftKey || e.getModifierState?.("CapsLock");
       const char = upper ? k.shift : k.base;
-      if (char) insert(char);
+      if (!char) return;
+      e.preventDefault();
+      flash(e.code);
+      insert(char);
     };
 
     const onKeyUp = (e: KeyboardEvent) => {
